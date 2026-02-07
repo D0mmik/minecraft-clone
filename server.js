@@ -1,12 +1,37 @@
 import { createServer } from 'http';
+import { readFileSync, existsSync } from 'fs';
+import { join, extname } from 'path';
+import { fileURLToPath } from 'url';
 import { WebSocketServer } from 'ws';
 
 const PORT = 3001;
 const TICK_RATE = 10; // 10 Hz position broadcast
 
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
+const DIST = join(__dirname, 'dist');
+
+const MIME = {
+  '.html': 'text/html',
+  '.js': 'application/javascript',
+  '.css': 'text/css',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+  '.json': 'application/json',
+};
+
 const httpServer = createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Minecraft multiplayer server');
+  let filePath = join(DIST, req.url === '/' ? 'index.html' : req.url);
+  if (!existsSync(filePath)) filePath = join(DIST, 'index.html');
+  try {
+    const data = readFileSync(filePath);
+    const mime = MIME[extname(filePath)] || 'application/octet-stream';
+    res.writeHead(200, { 'Content-Type': mime });
+    res.end(data);
+  } catch {
+    res.writeHead(404);
+    res.end('Not found');
+  }
 });
 
 const wss = new WebSocketServer({ server: httpServer });

@@ -102,7 +102,15 @@ class Game {
 
   _buildWsUrl(server) {
     if (!server) {
-      return `ws://${location.hostname || 'localhost'}:3001`;
+      // If served from the game server itself (same origin), connect to same host
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      const host = location.hostname || 'localhost';
+      const port = location.port && location.port !== '443' && location.port !== '80' ? `:${location.port}` : '';
+      // On Vite dev server (5173), point to game server on 3001
+      if (location.port === '5173') {
+        return `ws://${host}:3001`;
+      }
+      return `${proto}://${host}${port}`;
     }
     // Already a full URL
     if (server.startsWith('ws://') || server.startsWith('wss://')) {
