@@ -1,9 +1,15 @@
+import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 
 const PORT = 3001;
 const TICK_RATE = 10; // 10 Hz position broadcast
 
-const wss = new WebSocketServer({ port: PORT });
+const httpServer = createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Minecraft multiplayer server');
+});
+
+const wss = new WebSocketServer({ server: httpServer });
 
 const players = new Map();   // id -> { id, username, x, y, z, yaw, pitch, ws }
 const blockDiffs = new Map(); // "x,y,z" -> blockType
@@ -130,4 +136,6 @@ setInterval(() => {
   }
 }, 1000 / TICK_RATE);
 
-console.log(`Multiplayer server running on ws://localhost:${PORT}`);
+httpServer.listen(PORT, () => {
+  console.log(`Multiplayer server running on ws://localhost:${PORT}`);
+});
