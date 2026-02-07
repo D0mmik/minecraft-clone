@@ -1,0 +1,17 @@
+export const CHUNK_SIZE = 16;
+export const CHUNK_HEIGHT = 256;
+export const WORLD_HEIGHT = 128;
+export const RENDER_DISTANCE = 12;
+export const GRAVITY = 20;
+export const JUMP_FORCE = 8;
+export const PLAYER_SPEED = 5;
+export const SPRINT_MULTIPLIER = 1.5;
+export const BLOCK_SIZE = 1;
+export const SEA_LEVEL = 62;
+export const MAX_CHUNKS_PER_FRAME = 4;
+export const UNLOAD_DISTANCE = RENDER_DISTANCE + 2;
+export const DAY_LENGTH = 600; // seconds for a full day cycle
+export const REACH_DISTANCE = 8;
+export const PLAYER_WIDTH = 0.6;
+export const PLAYER_HEIGHT = 1.8;
+export const PLAYER_EYE_HEIGHT = 1.62;
