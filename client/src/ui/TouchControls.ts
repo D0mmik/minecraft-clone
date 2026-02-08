@@ -35,6 +35,11 @@ export class TouchControls {
     this._container.style.cssText = 'position:fixed;inset:0;z-index:50;pointer-events:none;';
     document.body.appendChild(this._container);
 
+    // Camera look area — append FIRST so buttons paint on top
+    const lookArea = document.createElement('div');
+    lookArea.style.cssText = 'position:fixed;top:0;right:0;width:50%;height:100%;pointer-events:auto;';
+    this._container.appendChild(lookArea);
+
     // Left joystick
     this._joystickOuter = this._createCircle(120, 'rgba(255,255,255,0.15)', 'rgba(255,255,255,0.3)');
     this._joystickOuter.style.cssText += 'position:fixed;bottom:30px;left:30px;pointer-events:auto;';
@@ -70,11 +75,6 @@ export class TouchControls {
     this._placeBtn.style.justifyContent = 'center';
     this._placeBtn.style.alignItems = 'center';
     this._container.appendChild(this._placeBtn);
-
-    // Right half invisible touch area for camera look
-    const lookArea = document.createElement('div');
-    lookArea.style.cssText = 'position:fixed;top:0;right:0;width:50%;height:100%;pointer-events:auto;z-index:49;';
-    this._container.appendChild(lookArea);
 
     // Event listeners
     this._joystickOuter.addEventListener('touchstart', this._onJoyStart, { passive: false });

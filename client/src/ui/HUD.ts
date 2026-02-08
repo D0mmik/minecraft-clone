@@ -96,9 +96,10 @@ export class HUD {
       }
     }
 
-    // Enable pointer events on hotbar container for mobile
+    // Enable pointer events on hotbar container for mobile and raise above touch controls
     if (IS_MOBILE) {
       this.hotbarEl.style.pointerEvents = 'auto';
+      this.hotbarEl.style.zIndex = '60';
     }
   }
 
