@@ -200,9 +200,7 @@ export function meshBlocks(
 
           let shouldRender = false;
           if (blockIsWater) {
-            // Never render bottom face
-            if (dy < 0) continue;
-            // Render when neighbor is not water (surface/sides visible from both sides)
+            // Render when neighbor is not water (top, bottom, sides all visible with DoubleSide)
             shouldRender = !liquidLUT[neighbor];
           } else if (block === 15) { // GLASS
             shouldRender = neighbor !== 15;

@@ -7,6 +7,7 @@ export class TouchControls {
   private _jumpBtn: HTMLDivElement;
   private _breakBtn: HTMLDivElement;
   private _placeBtn: HTMLDivElement;
+  private _chatBtn: HTMLDivElement;
 
   // Joystick state
   private _joystickTouchId: number | null = null;
@@ -27,8 +28,9 @@ export class TouchControls {
   isBreaking = false;
   isPlacing = false;
 
-  // Slot select callback
+  // Callbacks
   onSlotSelect: ((slot: number) => void) | null = null;
+  onChatOpen: (() => void) | null = null;
 
   constructor() {
     this._container = document.createElement('div');
@@ -76,6 +78,15 @@ export class TouchControls {
     this._placeBtn.style.alignItems = 'center';
     this._container.appendChild(this._placeBtn);
 
+    // Chat button (top-left)
+    this._chatBtn = this._createRect(45, 36, 'rgba(255,255,255,0.15)', 'rgba(255,255,255,0.3)');
+    this._chatBtn.style.cssText += 'position:fixed;top:calc(10px + env(safe-area-inset-top, 0px));left:calc(10px + env(safe-area-inset-left, 0px));pointer-events:auto;';
+    this._chatBtn.innerHTML = '<span style="color:#fff;font-size:12px;font-family:Courier New,monospace;">Chat</span>';
+    this._chatBtn.style.display = 'flex';
+    this._chatBtn.style.justifyContent = 'center';
+    this._chatBtn.style.alignItems = 'center';
+    this._container.appendChild(this._chatBtn);
+
     // Event listeners
     this._joystickOuter.addEventListener('touchstart', this._onJoyStart, { passive: false });
     this._joystickOuter.addEventListener('touchmove', this._onJoyMove, { passive: false });
@@ -98,6 +109,11 @@ export class TouchControls {
     this._placeBtn.addEventListener('touchstart', (e) => { e.preventDefault(); this.isPlacing = true; }, { passive: false });
     this._placeBtn.addEventListener('touchend', (e) => { e.preventDefault(); this.isPlacing = false; }, { passive: false });
     this._placeBtn.addEventListener('touchcancel', () => { this.isPlacing = false; });
+
+    this._chatBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (this.onChatOpen) this.onChatOpen();
+    }, { passive: false });
   }
 
   private _createCircle(size: number, bg: string, border: string): HTMLDivElement {

@@ -182,11 +182,16 @@ class Game {
       this.chatUI.open();
     };
 
-    // Wire mobile hotbar slot selection
+    // Wire mobile hotbar slot selection + chat button
     if (IS_MOBILE) {
       this.hud.onSlotSelect = (slot: number) => {
         this.controls.selectedSlot = slot;
       };
+      if (this.controls.touchControls) {
+        this.controls.touchControls.onChatOpen = () => {
+          this.chatUI.open();
+        };
+      }
     }
 
     // Wire chat send

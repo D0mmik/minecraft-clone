@@ -30,7 +30,7 @@ export class ChatUI {
     this.input.type = 'text';
     this.input.maxLength = 200;
     this.input.placeholder = 'Type a message...';
-    this.input.style.cssText = 'width:350px;padding:4px 8px;font-size:13px;font-family:Courier New,monospace;background:rgba(0,0,0,0.7);color:#fff;border:1px solid #555;outline:none;';
+    this.input.style.cssText = 'width:min(350px, calc(100vw - 30px));padding:4px 8px;font-size:13px;font-family:Courier New,monospace;background:rgba(0,0,0,0.7);color:#fff;border:1px solid #555;outline:none;';
     this.inputRow.appendChild(this.input);
     this.container.appendChild(this.inputRow);
 
