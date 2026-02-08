@@ -167,7 +167,7 @@ export class Controls {
     }
 
     // Prevent default for game keys
-    if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ShiftLeft', 'F3'].includes(e.code)) {
+    if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'F3'].includes(e.code)) {
       e.preventDefault();
     }
   }
@@ -215,7 +215,11 @@ export class Controls {
   }
 
   isSprinting(): boolean {
-    return !!this.keys['ShiftLeft'];
+    return !!this.keys['ControlLeft'] || !!this.keys['ControlRight'];
+  }
+
+  isSneaking(): boolean {
+    return !!this.keys['ShiftLeft'] || !!this.keys['ShiftRight'];
   }
 
   getSelectedBlock(): number {

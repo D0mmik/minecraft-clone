@@ -206,9 +206,8 @@ export function meshBlocks(
               // Top face: render when above is not water (surface)
               shouldRender = !liquidLUT[neighbor];
             } else {
-              // Side faces: only render at surface level (block above is not water)
-              const above = (y + 1 < CHUNK_HEIGHT) ? blocks[x + z * CHUNK_SIZE + (y + 1) * chunkSizeSq] : 0;
-              shouldRender = neighbor === 0 && !liquidLUT[above];
+              // Side faces: render when neighbor is air (visible from outside only)
+              shouldRender = neighbor === 0;
             }
           } else if (block === 15) { // GLASS
             shouldRender = neighbor !== 15;

@@ -13,6 +13,7 @@ export class Player {
   velocity: THREE.Vector3;
   onGround: boolean;
   sprinting: boolean;
+  sneaking: boolean;
   headBobTime: number;
   headBobAmount: number;
   halfWidth: number;
@@ -38,6 +39,7 @@ export class Player {
     this.velocity = new THREE.Vector3(0, 0, 0);
     this.onGround = false;
     this.sprinting = false;
+    this.sneaking = false;
     this.headBobTime = 0;
     this.headBobAmount = 0;
 
@@ -60,16 +62,17 @@ export class Player {
     this._eyePos = new THREE.Vector3();
   }
 
-  update(dt: number, inputDir: InputDir, yaw: number, jumping: boolean, sprinting: boolean): void {
+  update(dt: number, inputDir: InputDir, yaw: number, jumping: boolean, sprinting: boolean, sneaking: boolean = false): void {
     if (this.isDead) return;
 
-    this.sprinting = sprinting;
+    this.sprinting = sneaking ? false : sprinting;
+    this.sneaking = sneaking;
 
     // Apply gravity
     this.velocity.y -= GRAVITY * dt;
 
     // Movement from input
-    const speed = PLAYER_SPEED * (sprinting ? SPRINT_MULTIPLIER : 1);
+    const speed = PLAYER_SPEED * (sneaking ? 0.3 : sprinting ? SPRINT_MULTIPLIER : 1);
     const moveX = inputDir.x * speed;
     const moveZ = inputDir.z * speed;
 
@@ -90,7 +93,7 @@ export class Player {
     const wasOnGround = this.onGround;
 
     // Apply velocity with collision detection
-    this.moveWithCollision(dt);
+    this.moveWithCollision(dt, sneaking);
 
     // Fall damage detection
     if (!wasOnGround && !this._wasFalling && this.velocity.y < 0) {
@@ -124,7 +127,7 @@ export class Player {
     }
   }
 
-  private moveWithCollision(dt: number): void {
+  private moveWithCollision(dt: number, sneaking: boolean = false): void {
     // Move each axis separately for proper collision response
     const dx = this.velocity.x * dt;
     const dy = this.velocity.y * dt;
@@ -133,6 +136,9 @@ export class Player {
     // Move X
     this.position.x += dx;
     if (this.checkCollision()) {
+      this.position.x -= dx;
+      this.velocity.x = 0;
+    } else if (sneaking && this.onGround && !this.hasGroundBelow()) {
       this.position.x -= dx;
       this.velocity.x = 0;
     }
@@ -154,7 +160,26 @@ export class Player {
     if (this.checkCollision()) {
       this.position.z -= dz;
       this.velocity.z = 0;
+    } else if (sneaking && this.onGround && !this.hasGroundBelow()) {
+      this.position.z -= dz;
+      this.velocity.z = 0;
     }
+  }
+
+  /** Check if there's any solid block under the player's footprint */
+  private hasGroundBelow(): boolean {
+    const checkY = Math.floor(this.position.y - 0.05);
+    const minX = Math.floor(this.position.x - this.halfWidth + 0.001);
+    const maxX = Math.floor(this.position.x + this.halfWidth - 0.001);
+    const minZ = Math.floor(this.position.z - this.halfWidth + 0.001);
+    const maxZ = Math.floor(this.position.z + this.halfWidth - 0.001);
+
+    for (let bx = minX; bx <= maxX; bx++) {
+      for (let bz = minZ; bz <= maxZ; bz++) {
+        if (isSolid(this.world.getBlock(bx, checkY, bz))) return true;
+      }
+    }
+    return false;
   }
 
   private checkCollision(): boolean {
@@ -205,9 +230,10 @@ export class Player {
   }
 
   getEyePosition(): THREE.Vector3 {
+    const eyeY = this.sneaking ? PLAYER_EYE_HEIGHT - 0.08 : PLAYER_EYE_HEIGHT;
     return this._eyePos.set(
       this.position.x,
-      this.position.y + PLAYER_EYE_HEIGHT + this.headBobAmount,
+      this.position.y + eyeY + this.headBobAmount,
       this.position.z
     );
   }

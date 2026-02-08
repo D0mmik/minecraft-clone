@@ -330,9 +330,10 @@ class Game {
       const inputDir = this.controls.getInputDirection();
       const jumping = this.controls.isJumping();
       const sprinting = this.controls.isSprinting();
+      const sneaking = this.controls.isSneaking();
 
       // Update player physics
-      this.player.update(dt, inputDir, this.controls.yaw, jumping, sprinting);
+      this.player.update(dt, inputDir, this.controls.yaw, jumping, sprinting, sneaking);
 
       // Update controls (camera + block interaction)
       this.controls.update(dt, this.world, this.player);
