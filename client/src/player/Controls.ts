@@ -5,6 +5,7 @@ import { TouchControls } from '../ui/TouchControls';
 import type { World } from '../world/World';
 import type { Player } from './Player';
 import type { ChatUI } from '../ui/ChatUI';
+import type { RemotePlayerManager } from '../net/RemotePlayerManager';
 import type { InputDir, RaycastHit } from '../types';
 
 export class Controls {
@@ -26,7 +27,9 @@ export class Controls {
   // Multiplayer callbacks
   onBlockChange: ((x: number, y: number, z: number, blockType: number) => void) | null;
   onChatOpen: (() => void) | null;
+  onAttackPlayer: ((targetId: string) => void) | null;
   chatUI: ChatUI | null;
+  remotePlayers: RemotePlayerManager | null;
 
   // Mouse buttons
   leftClick: boolean;
@@ -66,7 +69,9 @@ export class Controls {
     // Multiplayer callbacks
     this.onBlockChange = null;
     this.onChatOpen = null;
+    this.onAttackPlayer = null;
     this.chatUI = null;
+    this.remotePlayers = null;
 
     // Mouse buttons
     this.leftClick = false;
@@ -242,13 +247,19 @@ export class Controls {
     const wantBreak = this.touchControls ? this.touchControls.isBreaking : this.leftClick;
     const wantPlace = this.touchControls ? this.touchControls.isPlacing : this.rightClick;
 
-    // Block breaking
+    // Block breaking / PvP attack
     if (wantBreak && this.leftClickCooldown <= 0) {
       this.leftClickCooldown = 0.25;
-      const hit = this.raycast(world, player);
-      if (hit && hit.block !== BlockType.BEDROCK) {
-        world.setBlock(hit.x, hit.y, hit.z, BlockType.AIR);
-        if (this.onBlockChange) this.onBlockChange(hit.x, hit.y, hit.z, BlockType.AIR);
+      // Check PvP first
+      const targetId = this.raycastPlayer(player);
+      if (targetId) {
+        if (this.onAttackPlayer) this.onAttackPlayer(targetId);
+      } else {
+        const hit = this.raycast(world, player);
+        if (hit && hit.block !== BlockType.BEDROCK) {
+          world.setBlock(hit.x, hit.y, hit.z, BlockType.AIR);
+          if (this.onBlockChange) this.onBlockChange(hit.x, hit.y, hit.z, BlockType.AIR);
+        }
       }
     }
 
@@ -343,6 +354,59 @@ export class Controls {
     }
 
     return null;
+  }
+
+  // Raycast against remote player bounding boxes for PvP
+  private raycastPlayer(player: Player): string | null {
+    if (!this.remotePlayers) return null;
+    const eye = player.getEyePosition();
+    const dir = this._rayDir.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
+
+    let closestId: string | null = null;
+    let closestT = REACH_DISTANCE;
+
+    for (const [id, entry] of this.remotePlayers.players) {
+      // Player AABB: 0.6 wide, 1.8 tall, centered at (x, y + 0.9, z)
+      const hw = 0.3;
+      const minX = entry.x - hw;
+      const maxX = entry.x + hw;
+      const minY = entry.y;
+      const maxY = entry.y + 1.8;
+      const minZ = entry.z - hw;
+      const maxZ = entry.z + hw;
+
+      // Ray-AABB intersection (slab method)
+      let tmin = -Infinity;
+      let tmax = Infinity;
+
+      if (dir.x !== 0) {
+        const t1 = (minX - eye.x) / dir.x;
+        const t2 = (maxX - eye.x) / dir.x;
+        tmin = Math.max(tmin, Math.min(t1, t2));
+        tmax = Math.min(tmax, Math.max(t1, t2));
+      } else if (eye.x < minX || eye.x > maxX) continue;
+
+      if (dir.y !== 0) {
+        const t1 = (minY - eye.y) / dir.y;
+        const t2 = (maxY - eye.y) / dir.y;
+        tmin = Math.max(tmin, Math.min(t1, t2));
+        tmax = Math.min(tmax, Math.max(t1, t2));
+      } else if (eye.y < minY || eye.y > maxY) continue;
+
+      if (dir.z !== 0) {
+        const t1 = (minZ - eye.z) / dir.z;
+        const t2 = (maxZ - eye.z) / dir.z;
+        tmin = Math.max(tmin, Math.min(t1, t2));
+        tmax = Math.min(tmax, Math.max(t1, t2));
+      } else if (eye.z < minZ || eye.z > maxZ) continue;
+
+      if (tmax >= Math.max(0, tmin) && tmin < closestT) {
+        closestT = tmin >= 0 ? tmin : 0;
+        closestId = id;
+      }
+    }
+
+    return closestId;
   }
 
   dispose(): void {

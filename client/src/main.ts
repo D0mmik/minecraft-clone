@@ -138,11 +138,33 @@ class Game {
       }
     };
 
+    // Wire controls to remote players for PvP raycasting
+    this.controls.remotePlayers = this.remotePlayers;
+
     // Wire block change callback
     this.controls.onBlockChange = (x: number, y: number, z: number, blockType: number) => {
       if (this._connected) {
         this.network.sendBlockSet(x, y, z, blockType);
       }
+    };
+
+    // Wire PvP attack
+    this.controls.onAttackPlayer = (targetId: string) => {
+      if (this._connected) {
+        this.network.sendAttack(targetId);
+      }
+    };
+
+    // Wire fall damage
+    this.player.onDamage = (amount: number) => {
+      if (this._connected) {
+        this.network.sendFallDamage(amount);
+      }
+    };
+
+    // Wire death
+    this.player.onDeath = () => {
+      this.hud.showDeathScreen();
     };
 
     // Wire chat open
@@ -239,6 +261,31 @@ class Game {
       // This message is available for future use
     });
 
+    this.network.on('health_update', (msg) => {
+      this.player.health = msg.health;
+      if (msg.health <= 0 && !this.player.isDead) {
+        this.player.isDead = true;
+        this.hud.showDeathScreen();
+      }
+    });
+
+    this.network.on('player_hurt', (_msg) => {
+      // Could add visual feedback (red flash) in the future
+    });
+
+    this.network.on('player_death', (msg) => {
+      if (msg.id !== this.network.id) {
+        const entry = this.remotePlayers.players.get(msg.id);
+        const name = entry ? entry.username : 'Player';
+        this.chatUI.addSystemMessage(`${name} died`);
+      }
+    });
+
+    this.network.on('respawn', (msg) => {
+      this.player.respawn(msg.x, msg.y, msg.z);
+      this.hud.hideDeathScreen();
+    });
+
     this.network.on('kicked', (msg) => {
       this._connected = false;
       this.network.disconnect();
@@ -327,6 +374,7 @@ class Game {
 
     // Update HUD
     this.hud.update(dt, this.player, this.world, this.controls, this.remotePlayers);
+    this.hud.updateHearts(this.player.health, this.player.maxHealth);
 
     // Render
     this.renderer.render();

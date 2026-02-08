@@ -56,6 +56,9 @@ interface ServerPlayer {
   yaw: number;
   pitch: number;
   ws: ServerWebSocket<WSData>;
+  health: number;
+  lastAttackTime: number;
+  isDead: boolean;
 }
 
 interface WSData {
@@ -275,6 +278,9 @@ Bun.serve<WSData>({
             yaw: savedPos?.yaw ?? 0,
             pitch: savedPos?.pitch ?? 0,
             ws,
+            health: 20,
+            lastAttackTime: 0,
+            isDead: false,
           };
           players.set(id, newPlayer);
 
@@ -329,6 +335,71 @@ Bun.serve<WSData>({
           blockDiffs.set(key, blockType);
           saveBlockDiff(x, y, z, blockType);
           broadcast({ type: 'block_set', x, y, z, blockType }, id);
+          break;
+        }
+
+        case 'attack': {
+          if (!player || player.isDead) return;
+          const now = Date.now();
+          if (now - player.lastAttackTime < 400) return; // attack cooldown
+          player.lastAttackTime = now;
+
+          const target = players.get(msg.targetId);
+          if (!target || target.isDead) return;
+
+          // Validate distance (max 6 blocks)
+          const adx = player.x - target.x;
+          const ady = player.y - target.y;
+          const adz = player.z - target.z;
+          const distSq = adx * adx + ady * ady + adz * adz;
+          if (distSq > 36) return; // 6^2
+
+          // Deal 4 damage (2 hearts)
+          target.health = Math.max(0, target.health - 4);
+          send(target.ws, { type: 'health_update', health: target.health });
+          broadcast({ type: 'player_hurt', id: target.id }, null);
+
+          if (target.health <= 0) {
+            target.isDead = true;
+            broadcast({ type: 'player_death', id: target.id }, null);
+            // Respawn after 2 seconds
+            setTimeout(() => {
+              if (!players.has(target.id)) return;
+              target.health = 20;
+              target.isDead = false;
+              target.x = 0;
+              target.y = 80;
+              target.z = 0;
+              send(target.ws, { type: 'respawn', x: 0, y: 80, z: 0 });
+              send(target.ws, { type: 'health_update', health: 20 });
+            }, 2000);
+          }
+          break;
+        }
+
+        case 'fall_damage': {
+          if (!player || player.isDead) return;
+          const amount = Math.min(Math.floor(Number(msg.amount) || 0), 40);
+          if (amount <= 0) return;
+
+          player.health = Math.max(0, player.health - amount);
+          send(ws, { type: 'health_update', health: player.health });
+          broadcast({ type: 'player_hurt', id: player.id }, null);
+
+          if (player.health <= 0) {
+            player.isDead = true;
+            broadcast({ type: 'player_death', id: player.id }, null);
+            setTimeout(() => {
+              if (!players.has(id)) return;
+              player.health = 20;
+              player.isDead = false;
+              player.x = 0;
+              player.y = 80;
+              player.z = 0;
+              send(ws, { type: 'respawn', x: 0, y: 80, z: 0 });
+              send(ws, { type: 'health_update', health: 20 });
+            }, 2000);
+          }
           break;
         }
 

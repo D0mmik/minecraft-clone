@@ -8,6 +8,8 @@ export type ClientMessage =
   | { type: 'position'; x: number; y: number; z: number; yaw: number; pitch: number }
   | { type: 'block_set'; x: number; y: number; z: number; blockType: number }
   | { type: 'chat'; message: string }
+  | { type: 'attack'; targetId: string }
+  | { type: 'fall_damage'; amount: number }
   // Admin messages
   | { type: 'admin_auth'; key: string }
   | { type: 'admin_kick'; target: string }
@@ -28,7 +30,11 @@ export type ServerMessage =
   | { type: 'admin_auth_result'; success: boolean }
   | { type: 'admin_state'; players: AdminPlayerInfo[]; playerCount: number; uptime: number; blockDiffsCount: number; seed: number; timeOfDay: number; bans: string[] }
   | { type: 'kicked'; reason: string }
-  | { type: 'player_count'; count: number };
+  | { type: 'player_count'; count: number }
+  | { type: 'health_update'; health: number }
+  | { type: 'player_hurt'; id: string }
+  | { type: 'player_death'; id: string }
+  | { type: 'respawn'; x: number; y: number; z: number };
 
 export interface ServerPlayerInfo {
   id: string;

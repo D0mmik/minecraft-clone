@@ -18,6 +18,17 @@ export class Player {
   halfWidth: number;
   height: number;
 
+  // Health
+  health: number;
+  maxHealth: number;
+  isDead: boolean;
+  onDamage: ((amount: number) => void) | null;
+  onDeath: (() => void) | null;
+
+  // Fall tracking
+  private _fallStartY: number;
+  private _wasFalling: boolean;
+
   // Cached vector to avoid per-frame allocations
   _eyePos: THREE.Vector3;
 
@@ -34,11 +45,24 @@ export class Player {
     this.halfWidth = PLAYER_WIDTH / 2;
     this.height = PLAYER_HEIGHT;
 
+    // Health
+    this.health = 20;
+    this.maxHealth = 20;
+    this.isDead = false;
+    this.onDamage = null;
+    this.onDeath = null;
+
+    // Fall tracking
+    this._fallStartY = 0;
+    this._wasFalling = false;
+
     // Cached vector to avoid per-frame allocations
     this._eyePos = new THREE.Vector3();
   }
 
   update(dt: number, inputDir: InputDir, yaw: number, jumping: boolean, sprinting: boolean): void {
+    if (this.isDead) return;
+
     this.sprinting = sprinting;
 
     // Apply gravity
@@ -62,8 +86,32 @@ export class Player {
       this.onGround = false;
     }
 
+    // Track fall start
+    const wasOnGround = this.onGround;
+
     // Apply velocity with collision detection
     this.moveWithCollision(dt);
+
+    // Fall damage detection
+    if (!wasOnGround && !this._wasFalling && this.velocity.y < 0) {
+      // Started falling
+      this._fallStartY = this.position.y;
+      this._wasFalling = true;
+    }
+    if (this._wasFalling && this.onGround) {
+      // Landed
+      const fallDist = this._fallStartY - this.position.y;
+      if (fallDist > 3) {
+        const damage = Math.floor(fallDist - 3);
+        if (damage > 0 && this.onDamage) {
+          this.onDamage(damage);
+        }
+      }
+      this._wasFalling = false;
+    }
+    if (this.onGround) {
+      this._fallStartY = this.position.y;
+    }
 
     // Head bob
     if (this.onGround && (Math.abs(inputDir.x) > 0.1 || Math.abs(inputDir.z) > 0.1)) {
@@ -136,6 +184,24 @@ export class Player {
       }
     }
     return false;
+  }
+
+  takeDamage(amount: number): void {
+    if (this.isDead) return;
+    this.health = Math.max(0, this.health - amount);
+    if (this.health <= 0) {
+      this.isDead = true;
+      if (this.onDeath) this.onDeath();
+    }
+  }
+
+  respawn(x: number, y: number, z: number): void {
+    this.position.set(x, y, z);
+    this.velocity.set(0, 0, 0);
+    this.health = this.maxHealth;
+    this.isDead = false;
+    this._wasFalling = false;
+    this._fallStartY = y;
   }
 
   getEyePosition(): THREE.Vector3 {

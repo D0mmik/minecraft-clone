@@ -71,6 +71,14 @@ export class NetworkClient {
     this.send({ type: 'chat', message });
   }
 
+  sendAttack(targetId: string): void {
+    this.send({ type: 'attack', targetId });
+  }
+
+  sendFallDamage(amount: number): void {
+    this.send({ type: 'fall_damage', amount });
+  }
+
   disconnect(): void {
     if (this.ws) {
       this.ws.close();

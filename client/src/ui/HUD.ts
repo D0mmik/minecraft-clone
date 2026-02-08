@@ -16,10 +16,12 @@ export class HUD {
   hotbarEl: HTMLElement;
   debugEl: HTMLElement;
   playerCountEl: HTMLElement;
+  heartsEl: HTMLElement;
   selectedSlot: number;
   slotElements: HTMLElement[];
   debugLines: HTMLElement[];
   onSlotSelect: ((slot: number) => void) | null;
+  private _lastHealth: number;
 
   constructor(atlasCanvas: HTMLCanvasElement) {
     this.atlasCanvas = atlasCanvas;
@@ -34,6 +36,12 @@ export class HUD {
     this.slotElements = [];
     this.debugLines = [];
     this.onSlotSelect = null;
+    this._lastHealth = -1;
+
+    // Hearts bar above hotbar
+    this.heartsEl = document.createElement('div');
+    this.heartsEl.style.cssText = 'position:fixed;bottom:60px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none;font-size:16px;text-shadow:1px 1px 0 #000;white-space:nowrap;';
+    document.body.appendChild(this.heartsEl);
 
     // Always-visible player count
     this.playerCountEl = document.createElement('div');
@@ -121,6 +129,41 @@ export class HUD {
         this.debugEl.style.display = this.debugVisible ? 'block' : 'none';
       }
     });
+  }
+
+  updateHearts(health: number, maxHealth: number): void {
+    if (health === this._lastHealth) return;
+    this._lastHealth = health;
+    const fullHearts = Math.floor(health / 2);
+    const halfHeart = health % 2 === 1;
+    const emptyHearts = Math.floor(maxHealth / 2) - fullHearts - (halfHeart ? 1 : 0);
+    let s = '';
+    for (let i = 0; i < fullHearts; i++) s += '<span style="color:#e74c3c">\u2764</span>';
+    if (halfHeart) s += '<span style="color:#e74c3c;opacity:0.5">\u2764</span>';
+    for (let i = 0; i < emptyHearts; i++) s += '<span style="color:#555">\u2764</span>';
+    this.heartsEl.innerHTML = s;
+  }
+
+  showDeathScreen(): void {
+    const existing = document.getElementById('death-screen');
+    if (existing) return;
+    const div = document.createElement('div');
+    div.id = 'death-screen';
+    div.style.cssText = 'position:fixed;inset:0;background:rgba(180,0,0,0.4);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200;font-family:Courier New,monospace;';
+    const title = document.createElement('div');
+    title.style.cssText = 'font-size:36px;color:#fff;text-shadow:2px 2px 0 #000;';
+    title.textContent = 'You Died!';
+    div.appendChild(title);
+    const sub = document.createElement('div');
+    sub.style.cssText = 'font-size:16px;color:#ccc;margin-top:12px;text-shadow:1px 1px 0 #000;';
+    sub.textContent = 'Respawning...';
+    div.appendChild(sub);
+    document.body.appendChild(div);
+  }
+
+  hideDeathScreen(): void {
+    const el = document.getElementById('death-screen');
+    if (el) el.remove();
   }
 
   update(dt: number, player: Player, world: World, controls: Controls, remotePlayers: RemotePlayerManager | null): void {
