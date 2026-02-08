@@ -8,6 +8,7 @@ import { NetworkClient } from './net/NetworkClient';
 import { RemotePlayerManager } from './net/RemotePlayerManager';
 import { ChatUI } from './ui/ChatUI';
 import { UsernameModal } from './ui/UsernameModal';
+import { IS_MOBILE } from './utils/constants';
 import type { BlockDiff } from './types';
 
 class Game {
@@ -45,6 +46,7 @@ class Game {
     let seed = 12345;
     let initTimeOfDay = 0.35;
     let initBlockDiffs: BlockDiff[] = [];
+    let spawnPosition: { x: number; y: number; z: number; yaw: number; pitch: number } | undefined;
     this._positionTimer = 0;
     this._connected = false;
     this._disconnectOverlay = null;
@@ -59,6 +61,7 @@ class Game {
       seed = initData.seed;
       initTimeOfDay = initData.timeOfDay;
       initBlockDiffs = initData.blockDiffs;
+      spawnPosition = initData.spawnPosition;
 
       // Add existing players
       for (const p of initData.players) {
@@ -76,6 +79,9 @@ class Game {
     // Store block diffs — applied per-chunk as chunks load
     this.world.applyBlockDiffs(initBlockDiffs);
 
+    // Initialize worker with seed + diffs
+    this.world.initWorker();
+
     // Set server time
     this.sky.timeOfDay = initTimeOfDay;
 
@@ -87,20 +93,35 @@ class Game {
     this.controls.chatUI = this.chatUI;
     this.chatUI.domElement = this.renderer.domElement;
 
-    // Set spawn position
-    const spawnX = 0;
-    const spawnZ = 0;
-    this.world.loadChunk(0, 0);
-    const spawnY = this.world.getSpawnHeight(spawnX, spawnZ);
-    this.player.position.set(spawnX, spawnY, spawnZ);
+    // Set spawn position — use saved position from server if available
+    if (spawnPosition) {
+      const spawnCX = Math.floor(spawnPosition.x / 16);
+      const spawnCZ = Math.floor(spawnPosition.z / 16);
+      this.world.loadChunk(spawnCX, spawnCZ);
+      this.player.position.set(spawnPosition.x, spawnPosition.y, spawnPosition.z);
+      this.controls.yaw = spawnPosition.yaw;
+      this.controls.pitch = spawnPosition.pitch;
+    } else {
+      const spawnX = 0;
+      const spawnZ = 0;
+      this.world.loadChunk(0, 0);
+      const spawnY = this.world.getSpawnHeight(spawnX, spawnZ);
+      this.player.position.set(spawnX, spawnY, spawnZ);
+    }
 
-    // Click overlay to lock pointer
+    // Click overlay to lock pointer (desktop only)
     const overlay = document.getElementById('overlay')!;
-    overlay.addEventListener('click', () => {
-      if (!this.chatUI.isOpen) {
-        this.controls.lock();
-      }
-    });
+    const crosshair = document.getElementById('crosshair')!;
+    if (IS_MOBILE) {
+      overlay.style.display = 'none';
+      crosshair.style.display = 'block';
+    } else {
+      overlay.addEventListener('click', () => {
+        if (!this.chatUI.isOpen) {
+          this.controls.lock();
+        }
+      });
+    }
 
     // Prevent right-click context menu
     document.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -129,6 +150,13 @@ class Game {
       this.chatUI.open();
     };
 
+    // Wire mobile hotbar slot selection
+    if (IS_MOBILE) {
+      this.hud.onSlotSelect = (slot: number) => {
+        this.controls.selectedSlot = slot;
+      };
+    }
+
     // Wire chat send
     this.chatUI.onSend = (message: string) => {
       if (this._connected) {
@@ -153,6 +181,7 @@ class Game {
     blockDiffs: BlockDiff[];
     seed: number;
     timeOfDay: number;
+    spawnPosition?: { x: number; y: number; z: number; yaw: number; pitch: number };
   }> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('Init timeout')), 10_000);
@@ -166,6 +195,7 @@ class Game {
           blockDiffs: msg.blockDiffs,
           seed: msg.seed,
           timeOfDay: msg.timeOfDay,
+          spawnPosition: msg.spawnPosition,
         });
       });
 
@@ -288,6 +318,9 @@ class Game {
         this.network.sendPosition(p.x, p.y, p.z, this.controls.yaw, this.controls.pitch);
       }
     }
+
+    // Adaptive chunk loading rate
+    this.world.trackFps(dt);
 
     // Update remote player interpolation + animation
     this.remotePlayers.update(dt);

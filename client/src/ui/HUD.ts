@@ -1,5 +1,6 @@
 import { hotbarBlocks, blockNames } from '../world/BlockType';
 import { ATLAS_GRID } from '../world/TextureAtlas';
+import { IS_MOBILE } from '../utils/constants';
 import type { Player } from '../player/Player';
 import type { World } from '../world/World';
 import type { Controls } from '../player/Controls';
@@ -18,6 +19,7 @@ export class HUD {
   selectedSlot: number;
   slotElements: HTMLElement[];
   debugLines: HTMLElement[];
+  onSlotSelect: ((slot: number) => void) | null;
 
   constructor(atlasCanvas: HTMLCanvasElement) {
     this.atlasCanvas = atlasCanvas;
@@ -31,6 +33,7 @@ export class HUD {
     this.selectedSlot = 0;
     this.slotElements = [];
     this.debugLines = [];
+    this.onSlotSelect = null;
 
     // Always-visible player count
     this.playerCountEl = document.createElement('div');
@@ -80,6 +83,22 @@ export class HUD {
       slot.appendChild(miniCanvas);
       this.hotbarEl.appendChild(slot);
       this.slotElements.push(slot);
+
+      // Make slots tappable on mobile
+      if (IS_MOBILE) {
+        slot.style.pointerEvents = 'auto';
+        const slotIdx = i;
+        slot.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (this.onSlotSelect) this.onSlotSelect(slotIdx);
+        }, { passive: false });
+      }
+    }
+
+    // Enable pointer events on hotbar container for mobile
+    if (IS_MOBILE) {
+      this.hotbarEl.style.pointerEvents = 'auto';
     }
   }
 

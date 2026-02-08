@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { REACH_DISTANCE } from '../utils/constants';
+import { REACH_DISTANCE, IS_MOBILE } from '../utils/constants';
 import { BlockType, isSolid, hotbarBlocks } from '../world/BlockType';
+import { TouchControls } from '../ui/TouchControls';
 import type { World } from '../world/World';
 import type { Player } from './Player';
 import type { ChatUI } from '../ui/ChatUI';
@@ -32,6 +33,9 @@ export class Controls {
   rightClick: boolean;
   leftClickCooldown: number;
   rightClickCooldown: number;
+
+  // Mobile touch controls
+  touchControls: TouchControls | null;
 
   // Bound event handlers
   private onMouseMove: (e: MouseEvent) => void;
@@ -70,6 +74,14 @@ export class Controls {
     this.leftClickCooldown = 0;
     this.rightClickCooldown = 0;
 
+    // Mobile touch controls
+    this.touchControls = null;
+
+    if (IS_MOBILE) {
+      this.touchControls = new TouchControls();
+      this.locked = true; // Always "locked" on mobile (no pointer lock)
+    }
+
     // Bind events
     this.onMouseMove = this._onMouseMove.bind(this);
     this.onMouseDown = this._onMouseDown.bind(this);
@@ -79,13 +91,15 @@ export class Controls {
     this.onWheel = this._onWheel.bind(this);
     this.onPointerLockChange = this._onPointerLockChange.bind(this);
 
-    document.addEventListener('mousemove', this.onMouseMove);
-    document.addEventListener('mousedown', this.onMouseDown);
-    document.addEventListener('mouseup', this.onMouseUp);
-    document.addEventListener('keydown', this.onKeyDown);
-    document.addEventListener('keyup', this.onKeyUp);
-    document.addEventListener('wheel', this.onWheel);
-    document.addEventListener('pointerlockchange', this.onPointerLockChange);
+    if (!IS_MOBILE) {
+      document.addEventListener('mousemove', this.onMouseMove);
+      document.addEventListener('mousedown', this.onMouseDown);
+      document.addEventListener('mouseup', this.onMouseUp);
+      document.addEventListener('keydown', this.onKeyDown);
+      document.addEventListener('keyup', this.onKeyUp);
+      document.addEventListener('wheel', this.onWheel);
+      document.addEventListener('pointerlockchange', this.onPointerLockChange);
+    }
   }
 
   lock(): void {
@@ -167,6 +181,13 @@ export class Controls {
   }
 
   getInputDirection(): InputDir {
+    if (this.touchControls) {
+      const td = this.touchControls.getInputDirection();
+      this._inputDir.x = td.x;
+      this._inputDir.z = td.z;
+      return this._inputDir;
+    }
+
     const dir = this._inputDir;
     dir.x = 0; dir.z = 0;
     if (this.keys['KeyW']) dir.z += 1;
@@ -184,6 +205,7 @@ export class Controls {
   }
 
   isJumping(): boolean {
+    if (this.touchControls) return this.touchControls.isJumping;
     return !!this.keys['Space'];
   }
 
@@ -196,6 +218,14 @@ export class Controls {
   }
 
   update(dt: number, world: World, player: Player): void {
+    // Consume touch look deltas
+    if (this.touchControls) {
+      const { yaw, pitch } = this.touchControls.consumeYawPitch();
+      this.yaw += yaw;
+      this.pitch += pitch;
+      this.pitch = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, this.pitch));
+    }
+
     // Update camera rotation
     this._euler.set(this.pitch, this.yaw, 0);
     this.camera.quaternion.setFromEuler(this._euler);
@@ -208,8 +238,12 @@ export class Controls {
     this.leftClickCooldown -= dt;
     this.rightClickCooldown -= dt;
 
+    // Determine break/place input (mouse or touch)
+    const wantBreak = this.touchControls ? this.touchControls.isBreaking : this.leftClick;
+    const wantPlace = this.touchControls ? this.touchControls.isPlacing : this.rightClick;
+
     // Block breaking
-    if (this.leftClick && this.leftClickCooldown <= 0) {
+    if (wantBreak && this.leftClickCooldown <= 0) {
       this.leftClickCooldown = 0.25;
       const hit = this.raycast(world, player);
       if (hit && hit.block !== BlockType.BEDROCK) {
@@ -219,7 +253,7 @@ export class Controls {
     }
 
     // Block placing
-    if (this.rightClick && this.rightClickCooldown <= 0) {
+    if (wantPlace && this.rightClickCooldown <= 0) {
       this.rightClickCooldown = 0.25;
       const hit = this.raycast(world, player);
       if (hit) {
@@ -312,6 +346,9 @@ export class Controls {
   }
 
   dispose(): void {
+    if (this.touchControls) {
+      this.touchControls.dispose();
+    }
     document.removeEventListener('mousemove', this.onMouseMove);
     document.removeEventListener('mousedown', this.onMouseDown);
     document.removeEventListener('mouseup', this.onMouseUp);

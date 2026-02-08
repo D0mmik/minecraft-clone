@@ -34,6 +34,17 @@ db.exec(`
   )
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS player_positions (
+    username TEXT PRIMARY KEY,
+    x REAL NOT NULL,
+    y REAL NOT NULL,
+    z REAL NOT NULL,
+    yaw REAL NOT NULL DEFAULT 0,
+    pitch REAL NOT NULL DEFAULT 0
+  )
+`);
+
 const stmtLoadDiffs = db.prepare('SELECT x, y, z, block_type FROM block_diffs');
 const stmtUpsertDiff = db.prepare(
   'INSERT OR REPLACE INTO block_diffs (x, y, z, block_type) VALUES (?, ?, ?, ?)'
@@ -62,6 +73,21 @@ export function getWorldMeta(key: string): string | undefined {
 
 export function setWorldMeta(key: string, value: string): void {
   stmtSetMeta.run(key, value);
+}
+
+// --- Player Positions ---
+const stmtGetPlayerPos = db.prepare('SELECT x, y, z, yaw, pitch FROM player_positions WHERE username = ?');
+const stmtSavePlayerPos = db.prepare(
+  'INSERT OR REPLACE INTO player_positions (username, x, y, z, yaw, pitch) VALUES (?, ?, ?, ?, ?, ?)'
+);
+
+export function getPlayerPosition(username: string): { x: number; y: number; z: number; yaw: number; pitch: number } | null {
+  const row = stmtGetPlayerPos.get(username.toLowerCase()) as { x: number; y: number; z: number; yaw: number; pitch: number } | null;
+  return row ?? null;
+}
+
+export function savePlayerPosition(username: string, x: number, y: number, z: number, yaw: number, pitch: number): void {
+  stmtSavePlayerPos.run(username.toLowerCase(), x, y, z, yaw, pitch);
 }
 
 // --- Bans ---

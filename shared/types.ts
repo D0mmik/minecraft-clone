@@ -17,7 +17,7 @@ export type ClientMessage =
 
 // Server → Client
 export type ServerMessage =
-  | { type: 'init'; id: string; players: ServerPlayerInfo[]; blockDiffs: BlockDiff[]; seed: number; timeOfDay: number }
+  | { type: 'init'; id: string; players: ServerPlayerInfo[]; blockDiffs: BlockDiff[]; seed: number; timeOfDay: number; spawnPosition?: { x: number; y: number; z: number; yaw: number; pitch: number } }
   | { type: 'player_join'; id: string; username: string; x: number; y: number; z: number }
   | { type: 'player_leave'; id: string }
   | { type: 'players_update'; players: PlayerPositionData[] }

@@ -1,6 +1,6 @@
 import type { ServerWebSocket } from 'bun';
 import { join, extname } from 'path';
-import { loadBlockDiffs, saveBlockDiff, getWorldMeta, setWorldMeta, addBan, removeBan, isBanned, loadBans } from './db';
+import { loadBlockDiffs, saveBlockDiff, getWorldMeta, setWorldMeta, addBan, removeBan, isBanned, loadBans, getPlayerPosition, savePlayerPosition } from './db';
 import type { ClientMessage, ServerMessage, ServerPlayerInfo, BlockDiff, AdminPlayerInfo } from '../shared/types';
 
 const PORT = Number(process.env.PORT) || 3001;
@@ -263,11 +263,17 @@ Bun.serve<WSData>({
             return;
           }
 
+          // Look up saved position for this player name
+          const savedPos = getPlayerPosition(username);
+
           const newPlayer: ServerPlayer = {
             id,
             username,
-            x: 0, y: 80, z: 0,
-            yaw: 0, pitch: 0,
+            x: savedPos?.x ?? 0,
+            y: savedPos?.y ?? 80,
+            z: savedPos?.z ?? 0,
+            yaw: savedPos?.yaw ?? 0,
+            pitch: savedPos?.pitch ?? 0,
             ws,
           };
           players.set(id, newPlayer);
@@ -294,6 +300,7 @@ Bun.serve<WSData>({
             blockDiffs: initDiffs,
             seed,
             timeOfDay,
+            spawnPosition: savedPos ? { x: savedPos.x, y: savedPos.y, z: savedPos.z, yaw: savedPos.yaw, pitch: savedPos.pitch } : undefined,
           };
           send(ws, initMsg);
 
@@ -346,6 +353,8 @@ Bun.serve<WSData>({
 
       const player = players.get(id);
       if (player) {
+        // Save position to DB before removing
+        savePlayerPosition(player.username, player.x, player.y, player.z, player.yaw, player.pitch);
         players.delete(id);
         broadcast({ type: 'player_leave', id }, null);
         broadcastPlayerCount();
@@ -376,10 +385,13 @@ setInterval(() => {
   broadcast({ type: 'time_sync', timeOfDay }, null);
 }, TIME_SYNC_INTERVAL);
 
-// Persist time every 30s
+// Persist time + player positions every 30s
 setInterval(() => {
   advanceTime();
   setWorldMeta('timeOfDay', String(timeOfDay));
+  for (const [, p] of players) {
+    savePlayerPosition(p.username, p.x, p.y, p.z, p.yaw, p.pitch);
+  }
 }, TIME_SAVE_INTERVAL);
 
 // Periodic admin state refresh (every 3s)

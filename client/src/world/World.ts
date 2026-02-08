@@ -4,6 +4,7 @@ import { BlockType } from './BlockType';
 import { Chunk } from './Chunk';
 import { TerrainGenerator } from './TerrainGenerator';
 import { createTextureAtlas } from './TextureAtlas';
+import type { MeshBuffers } from './ChunkMesher';
 import type { ChunkLoadEntry, GetNeighborBlock, BlockDiff } from '../types';
 
 export class World {
@@ -29,13 +30,29 @@ export class World {
 
   // Block diffs from server — applied per-chunk during loadChunk()
   private _blockDiffs: Map<string, { lx: number; y: number; lz: number; type: number }[]>;
+  // Raw diffs kept for worker init
+  private _rawBlockDiffs: BlockDiff[];
 
   // Cached bound getNeighborBlock
   _getNeighborBlock: GetNeighborBlock;
 
+  // Web Worker for off-thread chunk gen+mesh
+  private _worker: Worker | null;
+  private _workerReady: boolean;
+  private _pendingWorkerChunks: Set<string>;
+
+  // Adaptive chunk loading
+  private _adaptiveMax: number;
+  private _fpsAccum: number;
+  private _fpsFrames: number;
+  private _fpsSampleTimer: number;
+
+  private _seed: number;
+
   constructor(scene: THREE.Scene, seed = 12345) {
     this.scene = scene;
     this.chunks = new Map();
+    this._seed = seed;
     this.terrainGenerator = new TerrainGenerator(seed);
     this.pendingChunks = [];
     this.loadedChunkCount = 0;
@@ -52,6 +69,7 @@ export class World {
 
     // Block diffs — keyed by chunk key
     this._blockDiffs = new Map();
+    this._rawBlockDiffs = [];
 
     // Cached bound getNeighborBlock (avoids closure creation per call)
     this._getNeighborBlock = (wx: number, wy: number, wz: number) => this.getBlock(wx, wy, wz);
@@ -74,6 +92,87 @@ export class World {
       transparent: true,
       opacity: 0.7,
     });
+
+    // Worker setup
+    this._worker = null;
+    this._workerReady = false;
+    this._pendingWorkerChunks = new Set();
+    this._initWorker();
+
+    // Adaptive loading
+    this._adaptiveMax = MAX_CHUNKS_PER_FRAME;
+    this._fpsAccum = 0;
+    this._fpsFrames = 0;
+    this._fpsSampleTimer = 0;
+  }
+
+  private _initWorker(): void {
+    try {
+      this._worker = new Worker(
+        new URL('./meshWorker.ts', import.meta.url),
+        { type: 'module' }
+      );
+      this._worker.onmessage = (e: MessageEvent) => this._onWorkerMessage(e);
+      this._worker.onerror = () => {
+        // Worker failed to load — fall back to sync
+        this._worker = null;
+        this._workerReady = false;
+      };
+    } catch {
+      // Workers not supported — sync fallback
+      this._worker = null;
+    }
+  }
+
+  /** Send init data to worker once we have seed + diffs */
+  initWorker(): void {
+    if (!this._worker) return;
+    this._worker.postMessage({
+      type: 'init',
+      seed: this._seed,
+      blockDiffs: this._rawBlockDiffs,
+    });
+  }
+
+  private _onWorkerMessage(e: MessageEvent): void {
+    const msg = e.data;
+    if (msg.type === 'ready') {
+      this._workerReady = true;
+      return;
+    }
+
+    if (msg.type === 'chunkResult') {
+      const { cx, cz } = msg;
+      const key = this.chunkKey(cx, cz);
+      this._pendingWorkerChunks.delete(key);
+
+      // If chunk was unloaded while worker was processing, discard
+      if (!this._cachedNeeded.has(key)) return;
+      // If chunk already exists (e.g. loaded synchronously), skip
+      if (this.chunks.has(key)) return;
+
+      const chunk = new Chunk(cx, cz);
+      chunk.blocks = msg.blocks;
+      this.chunks.set(key, chunk);
+
+      const buffers: MeshBuffers = {
+        opaquePos: msg.opaquePos,
+        opaqueNrm: msg.opaqueNrm,
+        opaqueUv: msg.opaqueUv,
+        opaqueCol: msg.opaqueCol,
+        opaqueIdx: msg.opaqueIdx,
+        waterPos: msg.waterPos,
+        waterNrm: msg.waterNrm,
+        waterUv: msg.waterUv,
+        waterCol: msg.waterCol,
+        waterIdx: msg.waterIdx,
+      };
+
+      chunk.buildMeshFromBuffers(buffers, this.opaqueMaterial, this.waterMaterial);
+
+      if (chunk.mesh) this.scene.add(chunk.mesh);
+      if (chunk.waterMesh) this.scene.add(chunk.waterMesh);
+    }
   }
 
   chunkKey(cx: number, cz: number): string {
@@ -118,6 +217,14 @@ export class World {
     if (lx === CHUNK_SIZE - 1) this._dirtyChunks.add(this.chunkKey(cx + 1, cz));
     if (lz === 0) this._dirtyChunks.add(this.chunkKey(cx, cz - 1));
     if (lz === CHUNK_SIZE - 1) this._dirtyChunks.add(this.chunkKey(cx, cz + 1));
+
+    // Notify worker of the diff so future chunk gen uses it
+    if (this._worker && this._workerReady) {
+      this._worker.postMessage({
+        type: 'addDiff',
+        diff: { x: worldX, y: worldY, z: worldZ, blockType: type },
+      });
+    }
   }
 
   flushDirtyChunks(): void {
@@ -151,6 +258,23 @@ export class World {
     if (chunk.waterMesh) this.scene.add(chunk.waterMesh);
   }
 
+  /** Track FPS for adaptive chunk loading */
+  trackFps(dt: number): void {
+    this._fpsFrames++;
+    this._fpsSampleTimer += dt;
+    if (this._fpsSampleTimer >= 0.5) {
+      const avgFps = this._fpsFrames / this._fpsSampleTimer;
+      this._fpsFrames = 0;
+      this._fpsSampleTimer = 0;
+
+      if (avgFps > 55 && this._adaptiveMax < 8) {
+        this._adaptiveMax++;
+      } else if (avgFps < 30 && this._adaptiveMax > 1) {
+        this._adaptiveMax--;
+      }
+    }
+  }
+
   update(playerPosition: THREE.Vector3): void {
     const playerCX = Math.floor(playerPosition.x / CHUNK_SIZE);
     const playerCZ = Math.floor(playerPosition.z / CHUNK_SIZE);
@@ -173,7 +297,7 @@ export class World {
             const cz = playerCZ + dz;
             const key = this.chunkKey(cx, cz);
             this._cachedNeeded.add(key);
-            if (!this.chunks.has(key)) {
+            if (!this.chunks.has(key) && !this._pendingWorkerChunks.has(key)) {
               const dist = dx * dx + dz * dz;
               this._cachedToLoad.push({ cx, cz, dist });
             }
@@ -193,16 +317,29 @@ export class World {
           if (chunk.waterMesh) this.scene.remove(chunk.waterMesh);
           chunk.dispose();
           this.chunks.delete(key);
+          // Tell worker to free memory for this chunk
+          if (this._worker && this._workerReady) {
+            this._worker.postMessage({ type: 'unloadChunk', cx: chunk.chunkX, cz: chunk.chunkZ });
+          }
         }
       }
     }
 
     // Load a few chunks per frame from cached toLoad list (index pointer instead of shift)
     let loaded = 0;
-    while (this._toLoadIdx < this._cachedToLoad.length && loaded < MAX_CHUNKS_PER_FRAME) {
+    const maxThisFrame = this._adaptiveMax;
+    while (this._toLoadIdx < this._cachedToLoad.length && loaded < maxThisFrame) {
       const { cx, cz } = this._cachedToLoad[this._toLoadIdx++];
-      if (!this.chunks.has(this.chunkKey(cx, cz))) {
-        this.loadChunk(cx, cz);
+      const key = this.chunkKey(cx, cz);
+      if (!this.chunks.has(key) && !this._pendingWorkerChunks.has(key)) {
+        if (this._worker && this._workerReady) {
+          // Offload to worker
+          this._pendingWorkerChunks.add(key);
+          this._worker.postMessage({ type: 'generateChunk', cx, cz });
+        } else {
+          // Synchronous fallback
+          this.loadChunk(cx, cz);
+        }
         loaded++;
       }
     }
@@ -211,6 +348,7 @@ export class World {
   }
 
   applyBlockDiffs(diffs: BlockDiff[]): void {
+    this._rawBlockDiffs = diffs;
     // Group diffs by chunk key for deferred application during loadChunk()
     for (const diff of diffs) {
       const cx = Math.floor(diff.x / CHUNK_SIZE);

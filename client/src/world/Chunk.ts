@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { CHUNK_SIZE, CHUNK_HEIGHT } from '../utils/constants';
 import { BlockType } from './BlockType';
-import { buildChunkMesh } from './ChunkMesher';
+import { buildChunkMesh, buffersToGeometry } from './ChunkMesher';
+import type { MeshBuffers } from './ChunkMesher';
 import type { GetNeighborBlock } from '../types';
 
 export class Chunk {
@@ -49,7 +50,23 @@ export class Chunk {
     }
 
     const { opaqueGeo, waterGeo } = buildChunkMesh(this, getNeighborBlock);
+    this._applyGeos(opaqueGeo, waterGeo, material, waterMaterial);
+  }
 
+  /** Build meshes from pre-computed buffers (from worker) */
+  buildMeshFromBuffers(buffers: MeshBuffers, material: THREE.Material, waterMaterial: THREE.Material): void {
+    if (this.mesh) {
+      this.mesh.geometry.dispose();
+    }
+    if (this.waterMesh) {
+      this.waterMesh.geometry.dispose();
+    }
+
+    const { opaqueGeo, waterGeo } = buffersToGeometry(buffers);
+    this._applyGeos(opaqueGeo, waterGeo, material, waterMaterial);
+  }
+
+  private _applyGeos(opaqueGeo: THREE.BufferGeometry | null, waterGeo: THREE.BufferGeometry | null, material: THREE.Material, waterMaterial: THREE.Material): void {
     if (opaqueGeo) {
       this.mesh = new THREE.Mesh(opaqueGeo, material);
       this.mesh.position.set(

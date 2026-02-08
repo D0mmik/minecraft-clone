@@ -4,6 +4,12 @@ const SKIN = 0xc8956c;
 const SHIRT = 0x3a9494;
 const PANTS = 0x2b2b6e;
 
+// Shared eye materials + geometries (avoid per-instance allocation)
+const EYE_WHITE_MAT = new THREE.MeshLambertMaterial({ color: 0xffffff });
+const EYE_PUPIL_MAT = new THREE.MeshLambertMaterial({ color: 0x222222 });
+const EYE_WHITE_GEO = new THREE.BoxGeometry(0.09, 0.045, 0.02);
+const EYE_PUPIL_GEO = new THREE.BoxGeometry(0.045, 0.045, 0.02);
+
 export class PlayerModel {
   group: THREE.Group;
   nameSprite: THREE.Sprite;
@@ -62,6 +68,23 @@ export class PlayerModel {
     rightLeg.position.y = -0.3375;
     this.rightLegPivot.add(rightLeg);
     this.group.add(this.rightLegPivot);
+
+    // Eyes on -Z face of head
+    const leftWhite = new THREE.Mesh(EYE_WHITE_GEO, EYE_WHITE_MAT);
+    leftWhite.position.set(-0.07, 1.61, -0.236);
+    this.group.add(leftWhite);
+
+    const rightWhite = new THREE.Mesh(EYE_WHITE_GEO, EYE_WHITE_MAT);
+    rightWhite.position.set(0.07, 1.61, -0.236);
+    this.group.add(rightWhite);
+
+    const leftPupil = new THREE.Mesh(EYE_PUPIL_GEO, EYE_PUPIL_MAT);
+    leftPupil.position.set(-0.0475, 1.61, -0.237);
+    this.group.add(leftPupil);
+
+    const rightPupil = new THREE.Mesh(EYE_PUPIL_GEO, EYE_PUPIL_MAT);
+    rightPupil.position.set(0.0475, 1.61, -0.237);
+    this.group.add(rightPupil);
 
     // Name sprite above head
     this.nameSprite = this._createNameSprite(username);
@@ -129,10 +152,14 @@ export class PlayerModel {
   }
 
   dispose(): void {
+    // Shared eye resources — skip to prevent cross-instance disposal
+    const sharedGeos = new Set([EYE_WHITE_GEO, EYE_PUPIL_GEO]);
+    const sharedMats = new Set<THREE.Material>([EYE_WHITE_MAT, EYE_PUPIL_MAT]);
+
     this.group.traverse((child) => {
       if (child instanceof THREE.Mesh) {
-        child.geometry.dispose();
-        if (child.material instanceof THREE.Material) {
+        if (!sharedGeos.has(child.geometry)) child.geometry.dispose();
+        if (child.material instanceof THREE.Material && !sharedMats.has(child.material)) {
           if ('map' in child.material && child.material.map) {
             (child.material.map as THREE.Texture).dispose();
           }
