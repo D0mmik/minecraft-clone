@@ -42,7 +42,7 @@ export class TouchControls {
 
     // Left joystick
     this._joystickOuter = this._createCircle(120, 'rgba(255,255,255,0.15)', 'rgba(255,255,255,0.3)');
-    this._joystickOuter.style.cssText += 'position:fixed;bottom:30px;left:30px;pointer-events:auto;';
+    this._joystickOuter.style.cssText += 'position:fixed;bottom:calc(30px + env(safe-area-inset-bottom, 0px));left:calc(30px + env(safe-area-inset-left, 0px));pointer-events:auto;';
     this._container.appendChild(this._joystickOuter);
 
     this._joystickInner = this._createCircle(50, 'rgba(255,255,255,0.5)', 'none');
@@ -51,7 +51,7 @@ export class TouchControls {
 
     // Jump button (bottom-right)
     this._jumpBtn = this._createCircle(60, 'rgba(255,255,255,0.2)', 'rgba(255,255,255,0.4)');
-    this._jumpBtn.style.cssText += 'position:fixed;bottom:30px;right:30px;pointer-events:auto;';
+    this._jumpBtn.style.cssText += 'position:fixed;bottom:calc(30px + env(safe-area-inset-bottom, 0px));right:calc(30px + env(safe-area-inset-right, 0px));pointer-events:auto;';
     this._jumpBtn.innerHTML = '<span style="color:#fff;font-size:20px;font-family:Courier New,monospace;">&#x25B2;</span>';
     this._jumpBtn.style.display = 'flex';
     this._jumpBtn.style.justifyContent = 'center';
@@ -60,7 +60,7 @@ export class TouchControls {
 
     // Break button (right side, mid)
     this._breakBtn = this._createRect(55, 55, 'rgba(255,80,80,0.3)', 'rgba(255,80,80,0.5)');
-    this._breakBtn.style.cssText += 'position:fixed;right:20px;top:50%;transform:translateY(-50%) translateY(35px);pointer-events:auto;';
+    this._breakBtn.style.cssText += 'position:fixed;right:calc(20px + env(safe-area-inset-right, 0px));top:50%;transform:translateY(-50%) translateY(35px);pointer-events:auto;';
     this._breakBtn.innerHTML = '<span style="color:#fff;font-size:11px;font-family:Courier New,monospace;">Break</span>';
     this._breakBtn.style.display = 'flex';
     this._breakBtn.style.justifyContent = 'center';
@@ -69,7 +69,7 @@ export class TouchControls {
 
     // Place button (right side, above break)
     this._placeBtn = this._createRect(55, 55, 'rgba(80,150,255,0.3)', 'rgba(80,150,255,0.5)');
-    this._placeBtn.style.cssText += 'position:fixed;right:20px;top:50%;transform:translateY(-50%) translateY(-35px);pointer-events:auto;';
+    this._placeBtn.style.cssText += 'position:fixed;right:calc(20px + env(safe-area-inset-right, 0px));top:50%;transform:translateY(-50%) translateY(-35px);pointer-events:auto;';
     this._placeBtn.innerHTML = '<span style="color:#fff;font-size:11px;font-family:Courier New,monospace;">Place</span>';
     this._placeBtn.style.display = 'flex';
     this._placeBtn.style.justifyContent = 'center';

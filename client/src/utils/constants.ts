@@ -1,5 +1,5 @@
 export const CHUNK_SIZE = 16;
-export const CHUNK_HEIGHT = 256;
+export const CHUNK_HEIGHT = 128;
 export const WORLD_HEIGHT = 128;
 export const IS_MOBILE = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 export const RENDER_DISTANCE = IS_MOBILE ? 6 : 12;

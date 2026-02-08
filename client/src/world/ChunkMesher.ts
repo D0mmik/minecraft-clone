@@ -202,13 +202,8 @@ export function meshBlocks(
           if (blockIsWater) {
             // Never render bottom face
             if (dy < 0) continue;
-            if (dy > 0) {
-              // Top face: render when above is not water (surface)
-              shouldRender = !liquidLUT[neighbor];
-            } else {
-              // Side faces: render when neighbor is air (visible from outside only)
-              shouldRender = neighbor === 0;
-            }
+            // Render when neighbor is not water (surface/sides visible from both sides)
+            shouldRender = !liquidLUT[neighbor];
           } else if (block === 15) { // GLASS
             shouldRender = neighbor !== 15;
           } else if (blockIsTransparent) {

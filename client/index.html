@@ -2,8 +2,31 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>ClaudeCraft</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>ClaudeCraft - Multiplayer Sandbox Game</title>
+
+  <!-- SEO -->
+  <meta name="description" content="A multiplayer browser-based voxel sandbox game. Build, explore, and play with friends in a procedurally generated world." />
+  <meta name="keywords" content="claudecraft, minecraft, voxel, sandbox, multiplayer, browser game, three.js, webgl" />
+  <meta name="theme-color" content="#87CEEB" />
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="ClaudeCraft" />
+  <meta property="og:description" content="A multiplayer browser-based voxel sandbox game. Build, explore, and play with friends." />
+  <meta property="og:image" content="/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:type" content="website" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="ClaudeCraft" />
+  <meta name="twitter:description" content="A multiplayer browser-based voxel sandbox game. Build, explore, and play with friends." />
+  <meta name="twitter:image" content="/og-image.png" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
   <style>
     * {
       margin: 0;
@@ -106,6 +129,24 @@
       text-shadow: 1px 1px 0 #000;
       display: none;
       line-height: 1.6;
+    }
+    /* Portrait phone: shrink hotbar to fit narrow screens */
+    @media (max-width: 430px) and (orientation: portrait) {
+      #hotbar {
+        gap: 1px;
+        bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+      }
+      .hotbar-slot {
+        width: 38px;
+        height: 38px;
+      }
+      .hotbar-slot canvas {
+        width: 28px;
+        height: 28px;
+      }
+      .hotbar-number {
+        font-size: 8px;
+      }
     }
   </style>
 </head>

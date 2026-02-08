@@ -20,10 +20,19 @@ export class Renderer {
 
   constructor() {
     this.renderer = new THREE.WebGLRenderer({ antialias: false });
-    this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(window.devicePixelRatio);
     this.renderer.setClearColor(0x87CEEB);
-    document.body.appendChild(this.renderer.domElement);
+
+    // Position canvas fixed to viewport origin — ensures it aligns
+    // with position:fixed UI elements (crosshair) on mobile
+    const canvas = this.renderer.domElement;
+    canvas.style.position = 'fixed';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+
+    const vp = this._viewportSize();
+    this.renderer.setSize(vp.w, vp.h);
+    document.body.appendChild(canvas);
 
     this.scene = new THREE.Scene();
 
@@ -34,7 +43,7 @@ export class Renderer {
     // Camera
     this.camera = new THREE.PerspectiveCamera(
       70,
-      window.innerWidth / window.innerHeight,
+      vp.w / vp.h,
       0.1,
       RENDER_DISTANCE * CHUNK_SIZE * 1.5
     );
@@ -58,12 +67,23 @@ export class Renderer {
     this._sunColor = new THREE.Color();
     this._sunsetLerpColor = new THREE.Color(0xFF8844);
 
-    // Handle resize
-    window.addEventListener('resize', () => {
-      this.camera.aspect = window.innerWidth / window.innerHeight;
+    // Handle resize (desktop + mobile visual viewport)
+    const onResize = () => {
+      const vp = this._viewportSize();
+      this.camera.aspect = vp.w / vp.h;
       this.camera.updateProjectionMatrix();
-      this.renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+      this.renderer.setSize(vp.w, vp.h);
+    };
+    window.addEventListener('resize', onResize);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', onResize);
+    }
+  }
+
+  private _viewportSize(): { w: number; h: number } {
+    const vv = window.visualViewport;
+    if (vv) return { w: vv.width, h: vv.height };
+    return { w: window.innerWidth, h: window.innerHeight };
   }
 
   updateFov(sprinting: boolean, dt: number): void {

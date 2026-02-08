@@ -44,7 +44,7 @@ export class TerrainGenerator {
 
     // Biome variation - controls amplitude
     const biomeNoise = this.fbm2D(worldX + 1000, worldZ + 1000, 2, 0.5, 2.0, 0.002);
-    const biomeAmplitude = 20 + (biomeNoise + 1) * 20; // 20-60 range
+    const biomeAmplitude = 20 + (biomeNoise + 1) * 15; // 20-50 range (fits CHUNK_HEIGHT=128)
 
     const baseHeight = 64;
     return Math.floor(baseHeight + baseNoise * biomeAmplitude);

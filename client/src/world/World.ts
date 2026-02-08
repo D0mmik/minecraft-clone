@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DoubleSide } from 'three';
 import { CHUNK_SIZE, CHUNK_HEIGHT, RENDER_DISTANCE, MAX_CHUNKS_PER_FRAME, UNLOAD_DISTANCE } from '../utils/constants';
 import { BlockType } from './BlockType';
 import { Chunk } from './Chunk';
@@ -91,6 +92,11 @@ export class World {
       vertexColors: true,
       transparent: true,
       opacity: 0.7,
+      side: DoubleSide,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1,
     });
 
     // Worker setup
