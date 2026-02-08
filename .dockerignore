@@ -1,7 +1,6 @@
 node_modules
 dist
-.vite
+.git
 .vercel
+.vite
 *.db
-*.db-shm
-*.db-wal
