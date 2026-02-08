@@ -1,7 +1,9 @@
 import { Database } from 'bun:sqlite';
 import { join } from 'path';
+import { mkdirSync } from 'fs';
 
 const dataDir = process.env.DATA_DIR || '.';
+mkdirSync(dataDir, { recursive: true });
 const dbPath = join(dataDir, 'world.db');
 
 const db = new Database(dbPath);
