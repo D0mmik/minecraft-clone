@@ -465,6 +465,15 @@ setInterval(() => {
   }
 }, TIME_SAVE_INTERVAL);
 
+// Health regeneration: +2 HP (1 heart) every 30s for alive players
+setInterval(() => {
+  for (const [, p] of players) {
+    if (p.isDead || p.health >= 20) continue;
+    p.health = Math.min(20, p.health + 2);
+    send(p.ws, { type: 'health_update', health: p.health });
+  }
+}, 30_000);
+
 // Periodic admin state refresh (every 3s)
 setInterval(() => {
   notifyAdmins();

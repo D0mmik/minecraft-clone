@@ -8,7 +8,7 @@ export class UsernameModal {
       box.style.cssText = 'background:#222;border:2px solid #555;padding:30px;text-align:center;min-width:320px;';
 
       const title = document.createElement('div');
-      title.textContent = 'Minecraft Clone';
+      title.textContent = 'ClaudeCraft';
       title.style.cssText = 'color:#fff;font-size:24px;margin-bottom:20px;';
 
       // Name
