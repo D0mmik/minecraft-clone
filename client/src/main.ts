@@ -8,6 +8,7 @@ import { NetworkClient } from './net/NetworkClient';
 import { RemotePlayerManager } from './net/RemotePlayerManager';
 import { ChatUI } from './ui/ChatUI';
 import { UsernameModal } from './ui/UsernameModal';
+import { SettingsModal } from './ui/Settings';
 import { IS_MOBILE } from './utils/constants';
 import type { BlockDiff } from './types';
 
@@ -122,6 +123,15 @@ class Game {
         }
       });
     }
+
+    // Settings button
+    const settingsBtn = document.getElementById('settings-btn')!;
+    settingsBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      new SettingsModal().show().then(() => {
+        this.controls.reloadBindings();
+      });
+    });
 
     // Prevent right-click context menu
     document.addEventListener('contextmenu', (e) => e.preventDefault());

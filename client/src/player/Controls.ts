@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { REACH_DISTANCE, IS_MOBILE } from '../utils/constants';
 import { BlockType, isSolid, hotbarBlocks } from '../world/BlockType';
 import { TouchControls } from '../ui/TouchControls';
+import { loadBindings } from '../ui/Settings';
+import type { KeyBindings } from '../ui/Settings';
 import type { World } from '../world/World';
 import type { Player } from './Player';
 import type { ChatUI } from '../ui/ChatUI';
@@ -39,6 +41,9 @@ export class Controls {
 
   // Mobile touch controls
   touchControls: TouchControls | null;
+
+  // Key bindings
+  private _bindings: KeyBindings;
 
   // Bound event handlers
   private onMouseMove: (e: MouseEvent) => void;
@@ -81,6 +86,9 @@ export class Controls {
 
     // Mobile touch controls
     this.touchControls = null;
+
+    // Key bindings
+    this._bindings = loadBindings();
 
     if (IS_MOBILE) {
       this.touchControls = new TouchControls();
@@ -167,7 +175,7 @@ export class Controls {
     }
 
     // Prevent default for game keys
-    if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'F3'].includes(e.code)) {
+    if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Space', 'F3', this._bindings.sprint, this._bindings.sneak].includes(e.code)) {
       e.preventDefault();
     }
   }
@@ -215,11 +223,15 @@ export class Controls {
   }
 
   isSprinting(): boolean {
-    return !!this.keys['ControlLeft'] || !!this.keys['ControlRight'];
+    return !!this.keys[this._bindings.sprint];
   }
 
   isSneaking(): boolean {
-    return !!this.keys['ShiftLeft'] || !!this.keys['ShiftRight'];
+    return !!this.keys[this._bindings.sneak];
+  }
+
+  reloadBindings(): void {
+    this._bindings = loadBindings();
   }
 
   getSelectedBlock(): number {
